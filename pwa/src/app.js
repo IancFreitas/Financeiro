@@ -38,10 +38,13 @@ function clearError(selector) { $(selector).textContent = ''; $(selector).hidden
 function toast(message, error = false) {
   if (locking) return;
   clearTimeout(toastTimer);
-  $('#toast').textContent = message;
-  $('#toast').classList.toggle('error', error);
-  $('#toast').hidden = false;
-  toastTimer = setTimeout(() => { $('#toast').hidden = true; $('#toast').textContent = ''; }, 6500);
+  const element = $('#toast');
+  element.setAttribute('role', error ? 'alert' : 'status');
+  element.setAttribute('aria-live', error ? 'assertive' : 'polite');
+  element.textContent = message;
+  element.classList.toggle('error', error);
+  element.hidden = false;
+  toastTimer = setTimeout(() => { element.hidden = true; element.textContent = ''; }, error ? 6500 : 4000);
 }
 function requireUnlocked() {
   if (locking || !vault?.isUnlocked) throw new Error('Abra o cofre novamente para continuar.');
@@ -58,12 +61,86 @@ function on(selector, event, handler, errorTarget) {
     catch (error) { if (errorTarget) showError(errorTarget, error); else toast(error?.message || 'Não foi possível concluir. Tente novamente.', true); }
   });
 }
-async function busy(button, operation) {
+async function busy(button, operation, busyLabel, restoreLabel) {
   if (button.disabled) return;
+  const original = button.textContent;
   button.disabled = true;
+  if (busyLabel) { button.textContent = busyLabel; button.setAttribute('aria-busy', 'true'); }
   try { return await operation(); }
-  finally { button.disabled = false; }
+  finally {
+    button.disabled = false;
+    if (busyLabel) { button.textContent = restoreLabel ? restoreLabel() : original; button.removeAttribute('aria-busy'); }
+  }
 }
+// Validação própria em pt-BR: sem balão nativo, com mensagem junto ao campo.
+function updateDescribed(input) {
+  const error = $(`#${input.id}-error`);
+  const ids = [input.dataset.describe, error && !error.hidden ? error.id : ''].filter(Boolean);
+  if (ids.length) input.setAttribute('aria-describedby', ids.join(' ')); else input.removeAttribute('aria-describedby');
+}
+function setFieldError(input, message) {
+  const error = $(`#${input.id}-error`);
+  error.textContent = message; error.hidden = false;
+  input.setAttribute('aria-invalid', 'true');
+  updateDescribed(input);
+}
+function clearFieldError(input) {
+  const error = $(`#${input.id}-error`);
+  if (error) { error.textContent = ''; error.hidden = true; }
+  input.removeAttribute('aria-invalid');
+  updateDescribed(input);
+}
+function resetValidation(form) {
+  form.querySelectorAll('input, select, textarea').forEach(input => { delete input.dataset.touched; if ($(`#${input.id}-error`)) clearFieldError(input); });
+  delete form.dataset.submitted;
+}
+function validateField(input, validate) {
+  const message = validate(input.value);
+  if (message) setFieldError(input, message); else clearFieldError(input);
+  return !message;
+}
+// Valida todos os campos na ordem visual e devolve o primeiro inválido.
+function validateFields(form, fields) {
+  form.dataset.submitted = '1';
+  let first = null;
+  for (const [input, validate] of fields) if (!validateField(input, validate) && !first) first = input;
+  return first;
+}
+function wireValidation(form, fields) {
+  for (const [input, validate] of fields()) {
+    input.addEventListener('input', () => { input.dataset.touched = '1'; if (input.getAttribute('aria-invalid') === 'true') clearFieldError(input); });
+    input.addEventListener('blur', event => {
+      // Não valida ao ir para um botão (ex.: Cancelar): o aviso deslocaria o alvo do toque.
+      if (event.relatedTarget?.closest?.('button')) return;
+      if (input.dataset.touched || form.dataset.submitted) validateField(input, validate);
+    });
+  }
+  form.addEventListener('reset', () => resetValidation(form));
+}
+const required = message => value => (value.trim() ? '' : message);
+function passwordMessage(value) {
+  if (new TextEncoder().encode(value).length > 1024) return 'Use uma senha de até 1.024 bytes.';
+  if (!isCreating) return value ? '' : 'Digite a senha do cofre.';
+  return value.length >= 12 ? '' : `Use pelo menos 12 caracteres. Faltam ${12 - value.length}.`;
+}
+function confirmMessage(value) {
+  if (!value) return 'Repita a senha para confirmar.';
+  return value === $('#password').value ? '' : 'As duas senhas precisam ser iguais.';
+}
+function amountMessage(value) {
+  if (!value.trim()) return 'Informe o valor.';
+  try { parseMoney(value); return ''; } catch (error) { return error.message; }
+}
+const gateFields = () => [[$('#password'), passwordMessage], ...(isCreating ? [[$('#password-confirm'), confirmMessage]] : [])];
+const recordFields = () => [
+  [$('#record-amount'), amountMessage],
+  [$('#record-date'), value => (Number.isFinite(new Date(value).getTime()) ? '' : 'Informe a data e a hora.')],
+  [$('#record-merchant'), required('Descreva o registro. Ex.: Mercado da semana.')],
+  [$('#record-category'), required('Escolha ou digite uma categoria.')],
+  [$('#record-account'), required('Informe a conta.')],
+];
+const restoreFields = () => [[$('#restore-password'), required('Digite a senha do backup.')]];
+function gateLabel() { return isCreating ? 'Criar cofre' : 'Abrir cofre'; }
 function setTab(name) {
   ['summary','records','vault'].forEach(tab => {
     $(`#${tab}-view`).hidden = tab !== name;
@@ -72,19 +149,22 @@ function setTab(name) {
     if (tab === name) button.setAttribute('aria-current', 'page'); else button.removeAttribute('aria-current');
   });
   window.scrollTo({ top: 0, behavior: 'instant' });
+  $(`#${name}-title`).focus({ preventScroll: true });
 }
 function localDateTime(date = new Date()) {
   const pad = value => String(value).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
-function empty(title, description, action = false) {
-  return `<div class="empty-state"><span class="empty-symbol" aria-hidden="true">↗</span><strong>${escapeHTML(title)}</strong><p>${escapeHTML(description)}</p>${action ? '<button class="button secondary new-record">Adicionar primeiro registro</button>' : ''}</div>`;
+function empty(title, description, action = null) {
+  const button = action ? `<button type="button" class="button secondary${action.newRecord ? ' new-record' : ''}"${action.id ? ` id="${action.id}"` : ''}>${escapeHTML(action.label)}</button>` : '';
+  return `<div class="empty-state"><span class="empty-symbol" aria-hidden="true">↗</span><strong>${escapeHTML(title)}</strong><p>${escapeHTML(description)}</p>${button}</div>`;
 }
+const addFirstAction = { label: 'Adicionar o primeiro registro', newRecord: true };
 function rowHTML(tx, editable = true) {
   const signed = tx.kind === 'income' ? '+ ' : tx.kind === 'expense' ? '− ' : '';
   const symbol = tx.kind === 'income' ? '↙' : tx.kind === 'expense' ? '↗' : '⇄';
   const tag = editable ? 'button' : 'div';
-  const attrs = editable ? ` type="button" data-id="${escapeHTML(tx.id)}" aria-label="Editar ${escapeHTML(tx.merchant)}, ${escapeHTML(money(tx.amountMinor))}"` : '';
+  const attrs = editable ? ` type="button" data-id="${escapeHTML(tx.id)}" aria-label="Editar ${escapeHTML(tx.merchant)}, ${escapeHTML(kinds[tx.kind] || '')}, ${escapeHTML(money(tx.amountMinor))}, ${escapeHTML(dateFormatter.format(new Date(tx.date)))}"` : '';
   return `<${tag} class="transaction-row"${attrs}><span class="transaction-symbol ${escapeHTML(tx.kind)}" aria-hidden="true">${symbol}</span><span class="transaction-copy"><span class="transaction-title">${escapeHTML(tx.merchant)}</span><span class="transaction-meta">${escapeHTML(tx.category)} · ${escapeHTML(tx.account)} · ${escapeHTML(dateFormatter.format(new Date(tx.date)))}</span></span><span class="transaction-amount ${escapeHTML(tx.kind)}">${signed}${escapeHTML(money(tx.amountMinor))}</span></${tag}>`;
 }
 function bindRows(container) {
@@ -125,7 +205,14 @@ function renderSummary() {
   $('#total-expense').textContent = money(totals.expense);
   renderCategories(monthRecords);
   const recent = monthRecords.slice(0,4);
-  $('#recent-records').innerHTML = recent.length ? recent.map(tx => rowHTML(tx)).join('') : empty('Um começo leve', 'Adicione uma entrada ou saída para acompanhar seu mês.', true);
+  let recentHTML;
+  if (recent.length) recentHTML = recent.map(tx => rowHTML(tx)).join('');
+  else if (transactions.length) {
+    const [year, month] = $('#month').value.split('-').map(Number);
+    const label = year && month ? new Date(year, month - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }) : '';
+    recentHTML = empty(label ? `Nenhum registro em ${label}` : 'Nenhum registro neste mês', 'Escolha outro mês ou adicione um registro.', { label: 'Adicionar registro', newRecord: true });
+  } else recentHTML = empty('Um começo leve', 'Adicione uma entrada ou saída para acompanhar seu mês.', addFirstAction);
+  $('#recent-records').innerHTML = recentHTML;
   bindRows($('#recent-records'));
 }
 function syncFilter(selector, values, firstLabel) {
@@ -140,7 +227,7 @@ function renderRecords() {
   const filtered = transactions.filter(tx => (!kind || tx.kind === kind) && (!account || tx.account === account) && (!category || tx.category === category) && (!search || `${tx.merchant} ${tx.note || ''}`.toLocaleLowerCase('pt-BR').includes(search)));
   $('#records-count').textContent = `${filtered.length} ${filtered.length === 1 ? 'registro' : 'registros'}`;
   if (!filtered.length) {
-    $('#records-list').innerHTML = transactions.length ? empty('Nada por aqui com esses filtros', 'Experimente outro termo ou selecione todas as contas e categorias.') : empty('O primeiro passo é simples', 'Registre uma movimentação e comece a cuidar do seu dia a dia.', true);
+    $('#records-list').innerHTML = transactions.length ? empty('Nada por aqui com esses filtros', 'Experimente outro termo ou selecione todas as contas e categorias.', { label: 'Limpar filtros', id: 'clear-filters' }) : empty('O primeiro passo é simples', 'Registre uma movimentação e comece a cuidar do seu dia a dia.', addFirstAction);
   } else {
     let previousDate = '';
     $('#records-list').innerHTML = filtered.map(tx => {
@@ -151,6 +238,10 @@ function renderRecords() {
     }).join('');
   }
   bindRows($('#records-list'));
+  $('#clear-filters')?.addEventListener('click', () => {
+    $('#search').value = ''; $('#filter-kind').value = ''; $('#filter-account').value = ''; $('#filter-category').value = '';
+    renderRecords(); $('#search').focus();
+  });
 }
 async function refresh() {
   const fresh = await vault.list();
@@ -163,7 +254,7 @@ async function refresh() {
 }
 function openRecord(tx) {
   if (!vault?.isUnlocked || locking) return;
-  $('#record-form').reset(); clearError('#record-error');
+  $('#record-form').reset(); clearError('#record-error'); hideDeleteConfirm();
   $('#record-id').value = tx?.id || '';
   $('#record-dialog-title').textContent = tx ? 'Editar registro' : 'Novo registro';
   $('#record-kind').value = tx?.kind || 'expense';
@@ -180,6 +271,10 @@ function openRecord(tx) {
   $('#delete-record').hidden = !tx;
   $('#record-dialog').showModal();
 }
+function hideDeleteConfirm() {
+  $('#delete-confirm').hidden = true; $('#delete-confirm-text').textContent = '';
+  $('#record-actions').hidden = false;
+}
 function clearPreparedBackup() {
   preparedFile = null;
   if (preparedURL) URL.revokeObjectURL(preparedURL);
@@ -189,7 +284,7 @@ function clearPreparedBackup() {
 function clearReview() { reviewItems = []; $('#review-list').replaceChildren(); $('#review-totals').replaceChildren(); $('#review-description').textContent = ''; clearError('#review-error'); }
 function closeDialog(dialog) {
   dialog.close();
-  if (dialog.id === 'record-dialog') { $('#record-form').reset(); $('#record-source').textContent = ''; editingOriginalDate = null; editingDisplayDate = null; clearError('#record-error'); }
+  if (dialog.id === 'record-dialog') { $('#record-form').reset(); $('#record-source').textContent = ''; editingOriginalDate = null; editingDisplayDate = null; clearError('#record-error'); hideDeleteConfirm(); }
   if (dialog.id === 'restore-dialog') { backupText = ''; $('#restore-form').reset(); clearError('#restore-error'); }
   if (dialog.id === 'review-dialog') { clearReview(); $('#capture-text').value = ''; incomingCapture = null; }
 }
@@ -245,7 +340,9 @@ async function configureGate() {
   $('#recovery-note').hidden = !isCreating;
   $('#password').autocomplete = isCreating ? 'new-password' : 'current-password';
   $('#password').minLength = isCreating ? 12 : 1;
-  $('#gate-submit').textContent = isCreating ? 'Criar meu cofre →' : 'Abrir meu cofre →';
+  $('#password').dataset.describe = isCreating ? 'password-help' : '';
+  updateDescribed($('#password'));
+  $('#gate-submit').textContent = gateLabel();
   $('#gate-form').hidden = false;
 }
 async function lock() {
@@ -288,13 +385,20 @@ on('#show-password','click', () => {
   $('#show-password').textContent = showing ? 'Ocultar' : 'Mostrar';
   $('#show-password').setAttribute('aria-label', showing ? 'Ocultar senha' : 'Mostrar senha');
 });
+wireValidation($('#gate-form'), () => [[$('#password'), passwordMessage], [$('#password-confirm'), confirmMessage]]);
+wireValidation($('#record-form'), recordFields);
+wireValidation($('#restore-form'), restoreFields);
+$('#record-amount').addEventListener('blur', () => {
+  const input = $('#record-amount');
+  try { input.value = formatMoney(parseMoney(input.value)).replace(/^R\$ /, ''); } catch { /* valor inválido: mantém o texto digitado */ }
+});
 on('#gate-form', 'submit', async event => {
   event.preventDefault(); clearError('#gate-error');
+  const invalid = validateFields($('#gate-form'), gateFields());
+  if (invalid) { invalid.focus(); return; }
   await busy($('#gate-submit'), async () => {
     const openingEpoch = sessionEpoch;
     let password = $('#password').value;
-    if (new TextEncoder().encode(password).length > 1024) throw new Error('Use uma senha de até 1.024 bytes.');
-    if (isCreating && (password.length < 12 || password !== $('#password-confirm').value)) throw new Error(password.length < 12 ? 'Use pelo menos 12 caracteres na senha.' : 'As duas senhas precisam ser iguais.');
     await enqueue(async () => {
       if (openingEpoch !== sessionEpoch || document.hidden) throw new Error('A abertura do cofre foi cancelada. Digite sua senha para continuar.');
       if (isCreating) await vault.create(password); else await vault.unlock(password);
@@ -311,7 +415,7 @@ on('#gate-form', 'submit', async event => {
       }
     }, true);
     if (document.hidden) await lock();
-  });
+  }, isCreating ? 'Criando cofre…' : 'Abrindo cofre…', gateLabel);
 }, '#gate-error');
 on('#month','change', renderSummary);
 on('#search','input', renderRecords);
@@ -320,8 +424,11 @@ on('#see-records','click', () => setTab('records'));
 on('#lock-button','click', lock);
 document.addEventListener('visibilitychange', () => { if (document.hidden) lock().catch(() => { vault?.lock(); location.reload(); }); });
 on('#record-form','submit', async event => {
-  event.preventDefault(); clearError('#record-error');
+  event.preventDefault(); clearError('#record-error'); hideDeleteConfirm();
+  const invalid = validateFields($('#record-form'), recordFields());
+  if (invalid) { invalid.focus(); return; }
   await busy($('#record-form button[type="submit"]'), async () => {
+    const wasEditing = Boolean($('#record-id').value);
     const amountMinor = Number(parseMoney($('#record-amount').value));
     const date = new Date($('#record-date').value);
     if (!Number.isFinite(date.getTime())) throw new Error('Escolha uma data e hora válidas.');
@@ -330,16 +437,25 @@ on('#record-form','submit', async event => {
     const validation = validateTransaction(tx);
     if (validation === false) throw new Error('Revise os dados do registro.');
     await enqueue(async () => { await vault.save(tx); await refresh(); });
-    closeDialog($('#record-dialog')); toast('Registro salvo. Um passo a mais de clareza.');
-  });
+    closeDialog($('#record-dialog')); toast(`${wasEditing ? 'Registro atualizado' : 'Registro salvo'}: ${tx.merchant}.`);
+  }, 'Salvando…');
 }, '#record-error');
-on('#delete-record','click',async () => {
-  if (!confirm('Excluir este registro? Ele será removido do cofre deste aparelho.')) return;
-  await busy($('#delete-record'), async () => {
+on('#delete-record','click', () => {
+  const tx = transactions.find(item => item.id === $('#record-id').value);
+  if (!tx) throw new Error('Este registro não está mais disponível.');
+  clearError('#record-error');
+  $('#delete-confirm-text').textContent = `Excluir "${tx.merchant}" (${money(tx.amountMinor)})? O registro será removido do cofre deste aparelho e não dá para desfazer.`;
+  $('#record-actions').hidden = true;
+  $('#delete-confirm').hidden = false;
+  $('#delete-cancel').focus();
+}, '#record-error');
+on('#delete-cancel','click', () => { hideDeleteConfirm(); $('#delete-record').focus(); });
+on('#delete-confirm-button','click',async () => {
+  await busy($('#delete-confirm-button'), async () => {
     const id = $('#record-id').value;
     await enqueue(async () => { await vault.remove(id); await refresh(); });
     closeDialog($('#record-dialog')); toast('Registro excluído.');
-  });
+  }, 'Excluindo…');
 }, '#record-error');
 on('#prepare-backup','click',async () => {
   await busy($('#prepare-backup'), async () => {
@@ -352,12 +468,12 @@ on('#prepare-backup','click',async () => {
       $('#share-backup').hidden = !navigator.canShare?.({ files:[preparedFile] });
       $('#backup-ready').hidden = false;
     });
-  });
+  }, 'Preparando…');
 });
 on('#share-backup','click', async () => {
   if (!preparedFile) throw new Error('Prepare um novo backup para continuar.');
   try { await navigator.share({ files:[preparedFile], title:'Backup Entrecontas' }); recordExport(); }
-  catch (error) { if (error.name !== 'AbortError') throw new Error('O compartilhamento não foi concluído. Use “Baixar arquivo” para guardar uma cópia.'); }
+  catch (error) { if (error.name !== 'AbortError') throw new Error('O compartilhamento não foi concluído. Use “Baixar backup” para guardar uma cópia.'); }
 });
 on('#download-backup','click', () => {
   if (!preparedURL || !preparedFile) throw new Error('Prepare um novo backup para continuar.');
@@ -375,12 +491,14 @@ on('#backup-file','change', async event => {
 });
 on('#restore-form','submit', async event => {
   event.preventDefault(); clearError('#restore-error');
+  const invalid = validateFields($('#restore-form'), restoreFields());
+  if (invalid) { invalid.focus(); return; }
   await busy($('#restore-form button[type="submit"]'), async () => {
     const inputBackup = backupText, inputPassword = $('#restore-password').value;
     const items = await enqueue(() => vault.inspectBackup(inputBackup, inputPassword));
     closeDialog($('#restore-dialog'));
     renderReview(items, 'Backup aberto com segurança.');
-  });
+  }, 'Abrindo backup…');
 }, '#restore-error');
 on('#csv-file','change', async event => {
   const epoch = sessionEpoch;
@@ -406,7 +524,7 @@ on('#review-capture','click',async () => {
   const raw = $('#capture-text').value.trim();
   if (!raw) throw new Error('Cole o conteúdo da captura antes de revisar.');
   if (new TextEncoder().encode(raw).length > 20 * 1024 * 1024) throw new Error('A captura ultrapassa o limite de 20 MB.');
-  await busy($('#review-capture'), () => enqueue(() => reviewCapture(raw)));
+  await busy($('#review-capture'), () => enqueue(() => reviewCapture(raw)), 'Revisando…');
 });
 on('#confirm-import','click', async () => {
   clearError('#review-error');
@@ -419,7 +537,7 @@ on('#confirm-import','click', async () => {
     await enqueue(async () => { result = await vault.merge(itemsToImport); await refresh(); });
     closeDialog($('#review-dialog')); setTab('records');
     toast(`${result.added} ${result.added === 1 ? 'registro adicionado' : 'registros adicionados'}.${result.skipped ? ` ${result.skipped} já existiam e foram preservados.` : ''}`);
-  }); } finally {
+  }, 'Adicionando…'); } finally {
     // busy() reabilita o botão; se a revisão ficou obsoleta (tudo já existe), mantém desabilitado.
     const known = new Set(transactions.map(tx => tx.id));
     if (reviewItems.length && reviewItems.every(tx => known.has(tx.id))) $('#confirm-import').disabled = true;
