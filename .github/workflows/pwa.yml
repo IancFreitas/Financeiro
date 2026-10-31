@@ -1,0 +1,21 @@
+name: PWA checks
+on:
+  pull_request:
+    paths: ['pwa/**', 'scripts/build_pwa.py', '.github/workflows/pwa.yml']
+  push:
+    branches: [main]
+    paths: ['pwa/**', 'scripts/build_pwa.py', '.github/workflows/pwa.yml']
+permissions:
+  contents: read
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - run: node --version
+      - run: npm --prefix pwa test
+      - run: npm --prefix pwa run check
+      - run: python3 scripts/build_pwa.py --out /tmp/financeiro-pwa-dist
