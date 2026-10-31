@@ -1,0 +1,3 @@
+id;date;merchant;amount;kind;category;account;currency;note
+8C30B820-823F-45C7-91B6-61B617F08681;2026-10-31T12:30:00-03:00;Mercado Exemplo;123,45;expense;Mercado;Cartão exemplo;BRL;Dado fictício
+04FF4BBA-BFA2-49F3-A78D-F57F425AA808;2026-10-31T09:00:00-03:00;Recebimento Exemplo;2500,00;income;Receita;Conta exemplo;BRL;Dado fictício
