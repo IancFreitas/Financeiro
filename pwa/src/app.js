@@ -202,7 +202,16 @@ function renderReview(items, description) {
     if (tx.kind === 'expense') totals.expense += BigInt(tx.amountMinor);
     return totals;
   }, { income: 0n, expense: 0n });
-  $('#review-description').textContent = `${description} ${items.length} ${items.length === 1 ? 'registro encontrado' : 'registros encontrados'}.`;
+  const knownIds = new Set(transactions.map(tx => tx.id));
+  const fresh = items.filter(tx => !knownIds.has(tx.id)).length;
+  const existing = items.length - fresh;
+  const found = `${items.length} ${items.length === 1 ? 'registro encontrado' : 'registros encontrados'}`;
+  let detail;
+  if (!fresh) detail = `${found}, ${items.length === 1 ? 'já existe' : 'todos já existem'} no cofre; nada será adicionado.`;
+  else if (existing) detail = `${found}: ${fresh} ${fresh === 1 ? 'novo' : 'novos'} e ${existing} ${existing === 1 ? 'já existe' : 'já existem'} no cofre (${existing === 1 ? 'será preservado' : 'serão preservados'}).`;
+  else detail = `${found}.`;
+  $('#review-description').textContent = `${description} ${detail}`;
+  $('#confirm-import').disabled = !fresh;
   $('#review-totals').innerHTML = `<div>Entradas<strong>${escapeHTML(money(total.income))}</strong></div><div>Saídas<strong>${escapeHTML(money(total.expense))}</strong></div><div>Transferências<strong>${items.filter(tx => tx.kind === 'transfer').length}</strong></div>`;
   $('#review-list').innerHTML = items.slice(0,100).map(tx => rowHTML(tx, false)).join('');
   clearError('#review-error');
@@ -401,14 +410,20 @@ on('#review-capture','click',async () => {
 });
 on('#confirm-import','click', async () => {
   clearError('#review-error');
-  await busy($('#confirm-import'), async () => {
+  try { await busy($('#confirm-import'), async () => {
     if (!reviewItems.length) throw new Error('Não há registros para adicionar.');
+    const knownIds = new Set(transactions.map(tx => tx.id));
+    if (reviewItems.every(tx => knownIds.has(tx.id))) throw new Error('Todos os registros já existem no cofre; nada será adicionado.');
     const itemsToImport = reviewItems;
     let result;
     await enqueue(async () => { result = await vault.merge(itemsToImport); await refresh(); });
     closeDialog($('#review-dialog')); setTab('records');
     toast(`${result.added} ${result.added === 1 ? 'registro adicionado' : 'registros adicionados'}.${result.skipped ? ` ${result.skipped} já existiam e foram preservados.` : ''}`);
-  });
+  }); } finally {
+    // busy() reabilita o botão; se a revisão ficou obsoleta (tudo já existe), mantém desabilitado.
+    const known = new Set(transactions.map(tx => tx.id));
+    if (reviewItems.length && reviewItems.every(tx => known.has(tx.id))) $('#confirm-import').disabled = true;
+  }
 }, '#review-error');
 
 $('#month').value = localDateTime().slice(0,7);
