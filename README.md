@@ -4,7 +4,7 @@ Aplicativo web instalável pela Tela de Início, inspirado na arquitetura do pro
 
 ## Recursos
 
-- Cofre cifrado no próprio navegador: AES-256-GCM, PBKDF2-SHA256 com 600.000 iterações, salt16 e nonce12 aleatórios. Senha mínima12, máximo1024 bytes, jamais persistida pelo app; chave apenas em memória enquanto aberto.
+- Cofre cifrado no próprio navegador: AES-256-GCM, PBKDF2-SHA256 com 600.000 iterações, salt 16 e nonce 12 aleatórios. Senha mínima 12, máximo 1024 bytes, jamais persistida pelo app; chave apenas em memória enquanto aberto.
 - Lançamentos em reais com valor exato, data/horário, tipo, conta, categoria, descrição e observação; edição/exclusão; busca e filtros; fluxo mensal (não saldo do banco).
 - IndexedDB guarda somente o envelope cifrado; revisões detectam gravações de outra janela para evitar perda silenciosa. Bloqueio manual e ao ocultar o app.
 - Exportação de backup cifrado para Compartilhar/Salvar em Arquivos/iCloud ou download; restauração em prévia, com merge de IDs ausentes. Não sobrescreve registros já existentes.
@@ -27,7 +27,7 @@ Backup no iCloud é por exportação/compartilhamento; a PWA não escreve silenc
 
 Dados não são enviados pelo código do app a servidores financeiros, analytics ou IA. A hospedagem serve o código e pode receber metadados normais de acesso, como em qualquer site. Dados desbloqueados estão acessíveis ao código que roda na página: mantenha aparelho, origem e atualizações sob controle. HTTPS é obrigatório para a criptografia e o service worker; não há fallback em texto claro.
 
-Limites: 20.000 registros e 14 MiB de dados JSON; arquivos cifrados/importados até20 MiB. Regras de moeda e datas são explícitas. Totais usam BigInt; cada valor armazenado é inteiro seguro em centavos.
+Limites: 20.000 registros e 14 MiB de dados JSON; arquivos cifrados/importados até 20 MiB. Regras de moeda e datas são explícitas. Totais usam BigInt; cada valor armazenado é inteiro seguro em centavos.
 
 ## CSV
 
@@ -49,9 +49,10 @@ Sem data, será usado o horário de recebimento com observação. Sem UUID, reen
 cd pwa
 npm test
 npm run check
+NODE_PATH=$(npm root -g) npm run test:browser   # exige Playwright
 ```
 
-Node22+; testes built-in, sem instalação de pacotes. Há testes adicionais IndexedDB no navegador em `tests/browser-checks.html`, com banco QA isolado e dados sintéticos, nunca no cofre de produção. `scripts/build_pwa.py` copia somente arquivos estáticos conhecidos, excluindo testes e dados de runtime.
+Node 22+; `npm test` e `npm run check` usam testes built-in, sem instalação de pacotes. `npm run test:browser` roda em Chromium (viewport iPhone 13, não Safari real) as 12 verificações de `tests/browser-checks.html` (banco QA isolado, dados sintéticos, nunca o cofre de produção) e um roteiro de aceite com servidor localhost. Exige Playwright fora do repositório, por exemplo `npm i -g playwright@1.63.0` e `playwright install chromium`, ou instalado em outro diretório e apontado por `NODE_PATH`; não entra no `package.json`. O CI tem o job `browser` com a mesma versão. `scripts/build_pwa.py` copia somente arquivos estáticos conhecidos, excluindo testes e dados de runtime.
 
 A versão nativa iOS permanece preservada no PR #1; esta PWA é entregue no PR #2. Backups nativos e web são formatos diferentes nesta primeira versão. Nenhum dado real ou credencial deve ser versionado.
 

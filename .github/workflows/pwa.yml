@@ -19,3 +19,20 @@ jobs:
       - run: npm --prefix pwa test
       - run: npm --prefix pwa run check
       - run: python3 scripts/build_pwa.py --out /tmp/financeiro-pwa-dist
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - run: node --version
+      - name: Instalar Playwright (versão fixa, fora do package.json)
+        run: |
+          mkdir -p "$RUNNER_TEMP/pw"
+          npm install --no-save --no-package-lock --prefix "$RUNNER_TEMP/pw" playwright@1.63.0
+          echo "NODE_PATH=$RUNNER_TEMP/pw/node_modules" >> "$GITHUB_ENV"
+          "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
+      - run: npm --prefix pwa run test:browser

@@ -1,4 +1,4 @@
-const VERSION = 'financeiro-local-v2';
+const VERSION = 'financeiro-local-v3';
 const SHELL = [
   './', './index.html', './styles.css', './manifest.webmanifest',
   './src/app.js', './src/core.js', './src/vault.js', './src/intake.js', './src/sw-register.js',
