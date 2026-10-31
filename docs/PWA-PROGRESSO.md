@@ -10,6 +10,8 @@ Acesso privado: https://financeiro-local-icf.berrybun20.chatgpt.site
 
 Sites confirmou implantação bem-sucedida, somente para o proprietário, em 31/10/2026. Código financeiro não usa backend nem analytics; a hospedagem serve o app e administra apenas acesso aos arquivos estáticos.
 
+Preparado, ainda não ativo: workflow `.github/workflows/pages.yml` para publicar em https://iancfreitas.github.io/Financeiro/ a cada merge na `main`. Depende de o proprietário ativar Settings → Pages → Source: GitHub Actions. Site público (só código; dados cifrados no aparelho). O cofre é por origem: migrar do endereço antigo por backup/restauração.
+
 ## Implementado
 
 - Cofre IndexedDB cifrado por senha, AES-256-GCM e PBKDF2-SHA256 com 600.000 iterações, senha não persistida, chave apenas em memória.
