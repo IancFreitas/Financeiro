@@ -1,0 +1,15 @@
+.DS_Store
+DerivedData/
+build/
+*.xcuserstate
+xcuserdata/
+*.p12
+*.p8
+*.mobileprovision
+*.financeiro
+*.sqlite*
+.env*
+ExportOptions.plist
+
+__pycache__/
+*.pyc
