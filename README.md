@@ -19,6 +19,10 @@ Aplicativo web instalável pela Tela de Início, inspirado na arquitetura do pro
 4. Adicione um registro fictício primeiro. Em Cofre, prepare uma cópia, compartilhe e escolha Salvar em Arquivos → iCloud Drive. Confira no Arquivos se foi salvo e sincronizado.
 5. Use sempre o ícone instalado: Safari e app da Tela de Início podem ter armazenamentos separados. A migração entre eles é por backup/restauração.
 
+### Endereço no GitHub Pages
+
+Depois que o proprietário ativar o Pages (Settings → Pages → Source: GitHub Actions), o workflow `pages.yml` publica o app em https://iancfreitas.github.io/Financeiro/ a cada merge na `main` que altere o app. O site é público, mas contém só o código: os dados ficam cifrados no aparelho. Cada origem (endereço) e o Safari têm armazenamento separado, então o cofre do endereço antigo (chatgpt.site) não aparece no novo; migre por backup e restauração.
+
 ## Limites explícitos
 
 O app não acessa diretamente notificações, contas ou credenciais de bancos. Atalhos e arquivos preparam entradas, mas você confirma a importação. Não há App Intent nativo, captura universal em background, conciliação automática, cálculo de saldo bancário ou sincronização entre dispositivos.
