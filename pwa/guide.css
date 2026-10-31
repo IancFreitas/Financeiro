@@ -1,9 +1,13 @@
-:root { color-scheme: light; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #173f33; background: #f5f6f2; line-height: 1.7; }
-body { margin: 0 auto; max-width: 720px; padding: max(24px, env(safe-area-inset-top)) 24px 60px; }
-h1 { font-size: 2.25rem; letter-spacing: -.05em; line-height: 1.15; }
+:root { color-scheme: light dark; --bg: #f5f6f2; --ink: #173f33; --link: #126c52; --note-bg: #fff; --note-border: #dbe5dd; --pre-bg: #e8eee8; --footer: #5b685f; --focus: #3a6f4a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: var(--ink); background: var(--bg); line-height: 1.7; }
+@media (prefers-color-scheme: dark) { :root { --bg: #101a16; --ink: #e6ede7; --link: #9fd4b5; --note-bg: #17231e; --note-border: #2c3b34; --pre-bg: #1f2d26; --footer: #a3b2a8; --focus: #9fd4b5; } }
+html { background: var(--bg); }
+body { margin: 0 auto; max-width: 720px; padding: max(24px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right)) 60px max(24px, env(safe-area-inset-left)); background: var(--bg); color: var(--ink); }
+h1 { font-size: clamp(1.75rem, 7vw, 2.25rem); letter-spacing: -.05em; line-height: 1.15; }
 h2 { margin-top: 2.2rem; font-size: 1.25rem; }
-a { color: #126c52; }
+a { color: var(--link); }
+a:first-of-type { display: inline-flex; align-items: center; min-height: 44px; }
+:where(a, summary, [tabindex]):focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 li { margin: .75rem 0; }
-pre { padding: 20px; border-radius: 16px; background: #e8eee8; white-space: pre-wrap; overflow-wrap: anywhere; font-size: .9rem; }
-.note { padding: 20px; background: #fff; border: 1px solid #dbe5dd; border-radius: 16px; }
-footer { margin-top: 40px; font-size: .85rem; color: #5b7167; }
+pre { padding: 20px; border-radius: 16px; background: var(--pre-bg); white-space: pre-wrap; overflow-wrap: anywhere; font-size: .9rem; }
+.note { padding: 20px; background: var(--note-bg); border: 1px solid var(--note-border); border-radius: 16px; }
+footer { margin-top: 40px; font-size: .85rem; color: var(--footer); }

@@ -128,8 +128,34 @@ try {
   console.log('Roteiro de aceite (iPhone 13)');
   const ctx = await browser.newContext({ ...devices['iPhone 13'] });
   const page = await ctx.newPage(); watch(page, 'app');
-  await createVault(page, PASSWORD);
-  ok('cofre criado e app visível');
+  // validação própria: senha curta na criação mostra "Faltam N" no campo, sem #gate-error
+  await page.goto(BASE, { waitUntil: 'load' });
+  await page.waitForSelector('#gate-form', { state: 'visible' });
+  assert(await page.$eval('#gate-form', form => form.noValidate), '#gate-form deveria usar novalidate');
+  await page.fill('#password', 'abcde');
+  await page.fill('#password-confirm', 'abcde');
+  await page.click('#gate-submit');
+  await page.waitForSelector('#password-error', { state: 'visible' });
+  assert((await text(page, '#password-error')) === 'Use pelo menos 12 caracteres. Faltam 7.', `Mensagem de senha curta inesperada: ${await text(page, '#password-error')}`);
+  assert(await page.isHidden('#gate-error'), '#gate-error não deveria aparecer para senha curta');
+  assert(await page.$eval('#password', el => el.getAttribute('aria-invalid') === 'true' && el === document.activeElement && el.getAttribute('aria-describedby').includes('password-error')), 'Senha curta: aria-invalid, foco e aria-describedby esperados');
+  assert(await page.isHidden('#app'), 'App não deveria abrir com senha curta');
+  ok('senha curta: "Faltam 7" no campo, foco e aria-invalid, sem #gate-error');
+
+  // rótulo de progresso durante a derivação da chave
+  await page.fill('#password', PASSWORD);
+  await page.fill('#password-confirm', PASSWORD);
+  assert(await page.isHidden('#password-error'), 'Erro da senha deveria sumir ao digitar');
+  await page.evaluate(() => {
+    const button = document.querySelector('#gate-submit');
+    window.__labels = [];
+    new MutationObserver(() => window.__labels.push(`${button.textContent}|${button.getAttribute('aria-busy')}`)).observe(button, { childList: true, characterData: true, subtree: true, attributes: true });
+  });
+  await page.click('#gate-submit');
+  await page.waitForSelector('#app', { state: 'visible' });
+  const labels = await page.evaluate(() => window.__labels);
+  assert(labels.some(label => label === 'Criando cofre…|true'), `Rótulo "Criando cofre…" não observado: ${JSON.stringify(labels)}`);
+  ok('criar cofre mostra "Criando cofre…" com aria-busy durante a derivação');
 
   await addRecord(page, { kind: 'income', amount: '100,00', merchant: 'Salário teste', category: 'Trabalho', account: 'Conta teste' });
   await addRecord(page, { kind: 'expense', amount: '25,50', merchant: SECRET, category: 'Alimentação', account: 'Conta teste' });
@@ -137,6 +163,54 @@ try {
   await page.waitForFunction(() => document.querySelector('#total-flow').textContent.includes('74,50'));
   assert((await text(page, '#total-flow')).includes('74,50'), 'Fluxo deveria conter 74,50');
   ok('receita, despesa e transferência criadas; fluxo 74,50');
+
+  // validação própria no formulário de registro
+  await page.locator('.new-record:visible').first().click();
+  await page.waitForSelector('#record-dialog[open]');
+  assert(await page.$eval('#record-form', form => form.noValidate), '#record-form deveria usar novalidate');
+  await page.click('#record-form button[type="submit"]');
+  await page.waitForSelector('#record-amount-error', { state: 'visible' });
+  assert(await page.locator('#record-dialog[open]').count() === 1, 'Diálogo deveria continuar aberto com erros');
+  const amountError = await text(page, '#record-amount-error');
+  assert(amountError === 'Informe o valor.', `Mensagem de valor inesperada: ${amountError}`);
+  assert(await page.$eval('#record-amount', el => el === document.activeElement && el.getAttribute('aria-invalid') === 'true' && el.getAttribute('aria-describedby') === 'record-amount-error'), 'Foco/aria-invalid/aria-describedby esperados em #record-amount');
+  for (const id of ['record-merchant', 'record-category', 'record-account']) {
+    assert(await page.isVisible(`#${id}-error`) && /[a-zà-ú]/i.test(await text(page, `#${id}-error`)), `Erro ausente em #${id}`);
+  }
+  await page.fill('#record-amount', '1234,5');
+  await page.locator('#record-merchant').focus();
+  assert(await page.inputValue('#record-amount') === '1.234,50', 'Valor deveria ser reformatado ao sair do campo');
+  assert(await page.isHidden('#record-amount-error'), 'Erro do valor deveria sumir ao digitar');
+  await page.fill('#record-amount', 'abc');
+  await page.click('#record-form button[type="submit"]');
+  assert((await text(page, '#record-amount-error')).startsWith('Valor inválido'), 'Valor inválido deveria usar a mensagem do parseMoney');
+  await page.click('#record-dialog .close-dialog >> nth=0');
+  await page.waitForSelector('#record-dialog:not([open])', { state: 'attached' });
+  ok('registro vazio: sem balão nativo, erros em pt-BR, foco e aria-invalid no primeiro campo; valor reformatado no blur');
+
+  // exclusão pede confirmação; "Manter registro" não remove
+  await page.click('.tab[data-tab=records]');
+  await page.locator('#records-list button.transaction-row', { hasText: 'Transferência teste' }).click();
+  await page.waitForSelector('#record-dialog[open]');
+  await page.click('#delete-record');
+  await page.waitForSelector('#delete-confirm', { state: 'visible' });
+  const confirmText = await text(page, '#delete-confirm-text');
+  assert(confirmText.includes('"Transferência teste"') && confirmText.includes('R$ 10,00') && confirmText.includes('não dá para desfazer'), `Texto de confirmação inesperado: ${confirmText}`);
+  assert(await page.$eval('#delete-cancel', el => el === document.activeElement), 'Foco deveria ir para "Manter registro"');
+  await page.click('#delete-cancel');
+  assert(await page.isHidden('#delete-confirm') && await page.locator('#record-dialog[open]').count() === 1, 'Manter registro deveria esconder a confirmação e manter o diálogo');
+  await page.click('#record-dialog .close-dialog >> nth=0');
+  await page.waitForSelector('#record-dialog:not([open])', { state: 'attached' });
+  await page.waitForFunction(() => document.querySelector('#records-count').textContent.trim() === '3 registros');
+  assert((await text(page, '#records-list')).includes('Transferência teste'), 'Registro não deveria ter sido removido');
+  // filtros sem resultado oferecem "Limpar filtros"
+  await page.fill('#search', 'zzz-inexistente');
+  await page.waitForSelector('#clear-filters', { state: 'visible' });
+  await page.click('#clear-filters');
+  assert(await page.inputValue('#search') === '', 'Limpar filtros deveria zerar a busca');
+  await page.waitForFunction(() => document.querySelector('#records-count').textContent.trim() === '3 registros');
+  await page.click('.tab[data-tab=summary]');
+  ok('exclusão pede confirmação e "Manter registro" não remove; "Limpar filtros" restaura a lista');
 
   const dump = await dumpIndexedDB(page);
   const stores = Object.entries(dump).flatMap(([db, s]) => Object.entries(s).map(([name, body]) => ({ db, name, body })));
@@ -212,6 +286,10 @@ try {
   await page2.click('.tab[data-tab=vault]');
   await page2.setInputFiles('#backup-file', backupPath);
   await page2.waitForSelector('#restore-dialog[open]');
+  await page2.click('#restore-form button[type="submit"]');
+  await page2.waitForSelector('#restore-password-error', { state: 'visible' });
+  assert((await text(page2, '#restore-password-error')) === 'Digite a senha do backup.', 'Mensagem de senha do backup vazia inesperada');
+  assert(await page2.$eval('#restore-password', el => el === document.activeElement), 'Foco deveria ir para #restore-password');
   await page2.fill('#restore-password', WRONG);
   await page2.click('#restore-form button[type="submit"]');
   await page2.waitForSelector('#restore-error', { state: 'visible' });
