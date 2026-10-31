@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'none'; script-src 'self'; style-src 'self'; object-src 'none'; base-uri 'none'">
+  <title>QA sintética do cofre</title>
+</head>
+<body>
+  <h1>QA sintética do cofre</h1>
+  <p>O helper cria um banco isolado com dados sintéticos. O cofre principal não é aberto nem alterado. Estes arquivos não fazem parte da distribuição.</p>
+  <button id="run" type="button">Executar testes sintéticos de IndexedDB</button>
+  <p id="status" role="status">Aguardando execução.</p>
+  <ol id="checks"></ol>
+  <script type="module" src="./browser-checks-page.js"></script>
+</body>
+</html>

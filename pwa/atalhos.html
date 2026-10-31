@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="referrer" content="no-referrer"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'none'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'"><title>Atalhos e iCloud · Financeiro</title><link rel="stylesheet" href="guide.css"></head>
+<body>
+<a href="./">← Voltar ao Financeiro</a>
+<h1>Do iPhone para o seu cofre.</h1>
+<p>Use Atalhos para preparar registros. Você revisa os dados no Financeiro antes de salvar. O aplicativo não lê notificações bancárias por conta própria.</p>
+<h2>1. Instale primeiro</h2>
+<ol><li>Abra o endereço no Safari. Se a hospedagem pedir, entre com a conta que tem acesso ao app.</li><li>Toque em Compartilhar, depois <strong>Adicionar à Tela de Início</strong>. Ative Abrir como App da Web, se essa opção aparecer.</li><li>Abra pelo novo ícone e crie o cofre com uma senha de pelo menos 12 caracteres.</li></ol>
+<p class="note">O Safari e o aplicativo instalado podem ter armazenamentos separados. Use sempre o ícone instalado para seus lançamentos. Para migrar dados entre eles, exporte e restaure um backup. Apagar o app ou os dados do site pode apagar o cofre local.</p>
+<h2>2. Faça um teste fictício</h2>
+<p>No Financeiro instalado, vá a Registros → Receber dados e cole o exemplo abaixo. Confira a prévia e confirme apenas se estiver tudo certo.</p>
+<pre>{
+  "amount": "1,23",
+  "merchant": "Loja de teste",
+  "kind": "expense",
+  "account": "Cartão de teste",
+  "category": "Teste",
+  "id": "29e3bfd2-740d-4b72-a6b7-171a58354529"
+}</pre>
+<p>Repita o mesmo teste: o UUID identifica o mesmo registro e impede uma segunda inserção. Depois exclua o lançamento fictício. Sem UUID, cada importação pode criar um novo registro.</p>
+<h2>3. Monte o Atalho</h2>
+<ol><li>No Atalhos da Apple, crie um atalho com uma ação Dicionário e os campos do exemplo: amount, merchant, kind, account, category e id.</li><li>Use um valor positivo no formato brasileiro, como <strong>123,45</strong>. kind deve ser expense (despesa), income (receita) ou transfer (transferência).</li><li>Para id, use um UUID único por transação. Reutilize esse mesmo UUID somente ao reenviar o mesmo evento. Um UUID fixo para todas as compras impediria novos registros.</li><li>Converta o dicionário para texto JSON e use a ação Copiar para a Área de Transferência. Se sua versão não oferecer a conversão, comece com uma ação Texto contendo o JSON do exemplo e substitua os campos conscientemente.</li><li>Abra o Financeiro pelo ícone instalado. Em Receber dados, cole, revise e confirme.</li></ol>
+<p>Se a origem informar a data original, acrescente <code>date</code> no formato <code>2026-10-31T12:30:00-03:00</code>. Sem esse campo, o horário será o da importação, com uma observação avisando a diferença.</p>
+<h2>4. Automação da Carteira</h2>
+<p>Quando o seu iPhone oferecer o gatilho Transação/Carteira, escolha o cartão e associe os campos disponíveis ao dicionário. Verifique valor e estabelecimento no aparelho. Esse evento não é um extrato completo e pode não cobrir Pix, recebimentos, estornos ou pagamentos online.</p>
+<p>Gatilhos de Notificação existem apenas em versões compatíveis do Atalhos. Antes de automatizar textos de banco, teste alertas recusados, recebidos e incompletos. Esta versão não adivinha valores nem tipos de operação de uma notificação arbitrária.</p>
+<p class="note">A PWA não recebe App Intents nativos e não importa silenciosamente enquanto está fechada. Evite dois gatilhos para a mesma compra. A área de transferência é temporária: depois de importar, copie outro conteúdo para removê-la.</p>
+<h2>5. Guarde uma cópia no iCloud</h2>
+<ol><li>Abra a aba Cofre e prepare um backup criptografado.</li><li>Toque em Compartilhar e escolha <strong>Salvar em Arquivos → iCloud Drive</strong>. Se o compartilhamento não estiver disponível, baixe o arquivo e mova-o para o iCloud pelo app Arquivos.</li><li>Aguarde a sincronização no Arquivos. O Financeiro sabe que preparou ou compartilhou o arquivo, mas não confirma a gravação final nem o upload.</li><li>Guarde a senha do cofre fora do app. Ela também abre o backup, inclusive em outro dispositivo. A senha não pode ser recuperada pelo aplicativo.</li></ol>
+<p>Um Atalho pode receber o arquivo pela folha de compartilhamento e usar a ação Salvar Arquivo na pasta escolhida. Ainda exige uma interação para entregar o arquivo; não é sincronização contínua em segundo plano.</p>
+<h2>Privacidade</h2>
+<p>O site hospeda o código do aplicativo. Os lançamentos ficam criptografados no armazenamento local do navegador; o código do app não envia registros para servidores. Backups e cópias da área de transferência só saem quando você os compartilha. Não coloque dados financeiros em endereços de URL, chats, repositórios ou serviços de IA.</p>
+<footer>O projeto nativo foi preservado separadamente. Esta versão é uma PWA: offline após o primeiro carregamento completo, com backup por exportação e restauração por arquivo.</footer>
+</body></html>

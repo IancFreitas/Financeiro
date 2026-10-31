@@ -1,0 +1,9 @@
+:root { color-scheme: light; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #173f33; background: #f5f6f2; line-height: 1.7; }
+body { margin: 0 auto; max-width: 720px; padding: max(24px, env(safe-area-inset-top)) 24px 60px; }
+h1 { font-size: 2.25rem; letter-spacing: -.05em; line-height: 1.15; }
+h2 { margin-top: 2.2rem; font-size: 1.25rem; }
+a { color: #126c52; }
+li { margin: .75rem 0; }
+pre { padding: 20px; border-radius: 16px; background: #e8eee8; white-space: pre-wrap; overflow-wrap: anywhere; font-size: .9rem; }
+.note { padding: 20px; background: #fff; border: 1px solid #dbe5dd; border-radius: 16px; }
+footer { margin-top: 40px; font-size: .85rem; color: #5b7167; }
