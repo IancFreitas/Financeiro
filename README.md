@@ -2,7 +2,7 @@
 
 App pessoal nativo para iPhone, em português, para organizar receitas, despesas e transferências sem backend, anúncios, analytics ou agregador bancário.
 
-**Estado: primeira implementação em revisão. Não é uma versão instalada ou homologada no iPhone.** Acompanhe a validação no PR e em [docs/PROGRESSO.md](docs/PROGRESSO.md).
+**Estado: primeira implementação compilada, com 25 testes aprovados no simulador. Ainda não instalada ou homologada no iPhone real.** Acompanhe a validação no PR e em [docs/PROGRESSO.md](docs/PROGRESSO.md).
 
 ## O que foi implementado
 

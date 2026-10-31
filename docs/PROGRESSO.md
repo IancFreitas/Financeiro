@@ -20,7 +20,9 @@ Primeira implementação do app iOS pronta para validação Apple, na branch `fe
 
 Executado no ambiente atual: gerador do projeto, verificação de referências/arquivos plist/XML/JSON, sintaxe do script Bash e compilação sintática dos scripts Python. Busca de APIs de rede/SDKs de analytics em fontes de runtime sem ocorrência. Revisão independente sênior trouxe correções de proteção de arquivos, fail-open em autenticação e formato AppIntent.
 
-Não executado localmente: Swift typecheck, XCTest, UI render, Keychain, seletor de pasta/iCloud e automações reais. Ambiente Linux sem Xcode/Swift. A primeira execução do GitHub Actions falhou no build por um argumento Foundation incorreto (`setAttributes`); corrigido para `ofItemAtPath`. Os 25 testes ainda precisam passar na nova execução. Ver resultado no PR antes de fazer merge.
+Executado remotamente no GitHub Actions: compilação completa e 25 testes XCTest aprovados, zero falhas, Xcode 16.4 / SDK iOS Simulator 18.5. Commit de código validado: `0ae117152aaff280096deda0e1d1b6b058fcfd46`. Evidência: https://github.com/IancFreitas/Financeiro/actions/runs/41180272013 . O primeiro build encontrou argumento Foundation incorreto (`setAttributes`), corrigido para `ofItemAtPath` antes da execução aprovada.
+
+Não executado: inspeção visual da UI, Keychain e acesso persistente a pasta/iCloud reais, autenticação/modal no aparelho e automações reais de bancos/Carteira. Ambiente local Linux sem Xcode/Swift; o runner macOS forneceu as evidências de compilação e testes unitários. Os commits posteriores exclusivamente de documentação não alteram o código validado.
 
 ## Equipe
 
@@ -46,7 +48,7 @@ Gerente: integração, App Intents, formato CSV, projeto/CI e documentação. S�
 
 ## Próximo ponto de retomada
 
-1. Conferir CI no PR #1. Corrigir build/testes se houver falhas; manter PR rascunho até evidência Apple.
+1. CI de código aprovada no PR #1: 25/25 testes, zero falhas. Manter rascunho enquanto instalação e validação no aparelho ainda estiverem pendentes.
 2. Escolher instalação conforme acesso/conta informados pelo usuário.
 3. Validar no iPhone o roteiro em INSTALACAO.md com dados fictícios, incluindo restauração real e retorno de autenticação nos modais.
 4. Configurar e testar captura específica por banco/cartão. Conferir duplicação, compra negada, estorno, alerta ausente e offline.
