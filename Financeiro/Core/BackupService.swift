@@ -5,6 +5,8 @@ import Security
 
 enum BackupService {
     static let maximumFileSize = 20 * 1_024 * 1_024
+    // Leaves room for Base64 and the authenticated envelope within the 20 MiB file cap.
+    static let maximumPlaintextSize = 14 * 1_024 * 1_024
     private static let iterations = 600_000
     private static let authenticatedHeader = Data("Financeiro/v1/AES-256-GCM/PBKDF2-HMAC-SHA256/600000".utf8)
 
@@ -22,7 +24,7 @@ enum BackupService {
         try validate(password: password)
         try validate(transactions: transactions)
         let plaintext = try JSONEncoder().encode(transactions)
-        guard plaintext.count <= maximumFileSize else { throw BackupError.fileTooLarge }
+        guard plaintext.count <= maximumPlaintextSize else { throw BackupError.fileTooLarge }
         var salt = Data(count: 16)
         let randomStatus = salt.withUnsafeMutableBytes { buffer in
             SecRandomCopyBytes(kSecRandomDefault, buffer.count, buffer.baseAddress!)

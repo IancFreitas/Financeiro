@@ -10,7 +10,7 @@ App pessoal nativo para iPhone, em português, para organizar receitas, despesas
 - Cadastro, edição e exclusão com estabelecimento/descrição, valor, data e horário, categoria, conta, origem e observação.
 - Resumo mensal em reais, busca e filtro por categoria. O fluxo é calculado com os lançamentos registrados; não representa o saldo do banco.
 - Ação **Registrar transação** no Atalhos, com valor, estabelecimento, conta/cartão, tipo, categoria, data e UUID opcional.
-- Importação CSV e restauração com prévia, confirmação e merge atômico; os registros atuais são mantidos.
+- Importação CSV e restauração com prévia, confirmação e merge atômico; os registros atuais são mantidos. Até 100.000 lançamentos, também limitados a 14 MiB de JSON contabilizado para manter backups criptografados de até 20 MiB.
 - Backup manual e automático com AES-256-GCM, senha e PBKDF2-HMAC-SHA256 (600.000 iterações).
 - Backup automático na pasta escolhida em Arquivos, inclusive iCloud Drive, após alterações e ao abrir o app. Última cópia e uma cópia anterior. Não é um serviço que executa continuamente com o app fechado.
 - Autenticação opcional por Face ID, Touch ID ou código para visualizar o app, incluindo modais.

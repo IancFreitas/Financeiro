@@ -47,9 +47,12 @@ final class TransactionStore: @unchecked Sendable {
                     category TEXT NOT NULL,
                     account TEXT NOT NULL,
                     source TEXT NOT NULL CHECK(source IN ('manual','shortcut','imported')),
-                    note TEXT NOT NULL
+                    note TEXT NOT NULL,
+                    encoded_bytes INTEGER NOT NULL CHECK(encoded_bytes > 0)
                 )
                 """)
+            try migrateSnapshotBudgetIfNeeded()
+            try validateCapacity()
             try execute("CREATE INDEX IF NOT EXISTS transactions_date ON transactions(date DESC)")
             try execute("PRAGMA user_version = 1")
             try protect(url)
@@ -95,7 +98,7 @@ final class TransactionStore: @unchecked Sendable {
         return try locked {
             try atomic {
                 let inserted = try insert(transaction)
-                try validateCount()
+                try validateCapacity()
                 return inserted
             }
         }
@@ -105,12 +108,14 @@ final class TransactionStore: @unchecked Sendable {
         try transaction.validate()
         try locked {
             try atomic {
-                let statement = try prepare("UPDATE transactions SET amount=?, currency=?, merchant=?, date=?, kind=?, category=?, account=?, source=?, note=? WHERE id=?")
+                let statement = try prepare("UPDATE transactions SET amount=?, currency=?, merchant=?, date=?, kind=?, category=?, account=?, source=?, note=?, encoded_bytes=? WHERE id=?")
                 defer { sqlite3_finalize(statement) }
                 try bindFields(transaction, to: statement, offset: 0)
-                try bind(transaction.id.uuidString, to: statement, at: 10)
+                try check(sqlite3_bind_int64(statement, 10, try encodedBudget(transaction)))
+                try bind(transaction.id.uuidString, to: statement, at: 11)
                 try checkDone(statement)
                 guard sqlite3_changes(connection) == 1 else { throw FinanceDataError.missingTransaction }
+                try validateCapacity()
             }
         }
     }
@@ -131,6 +136,7 @@ final class TransactionStore: @unchecked Sendable {
             try atomic {
                 try execute("DELETE FROM transactions")
                 for transaction in transactions { _ = try insert(transaction) }
+                try validateCapacity()
             }
         }
     }
@@ -142,7 +148,7 @@ final class TransactionStore: @unchecked Sendable {
             try atomic {
                 var inserted = 0
                 for transaction in transactions { if try insert(transaction) { inserted += 1 } }
-                try validateCount()
+                try validateCapacity()
                 return inserted
             }
         }
@@ -150,14 +156,56 @@ final class TransactionStore: @unchecked Sendable {
 
     private func validate(_ transactions: [FinanceTransaction]) throws {
         guard transactions.count <= Self.maximumTransactions else { throw FinanceDataError.tooManyTransactions }
-        for transaction in transactions { try transaction.validate() }
+        var budget: Int64 = 2
+        for transaction in transactions {
+            try transaction.validate()
+            budget += try encodedBudget(transaction) + 1
+            guard budget <= Int64(BackupService.maximumPlaintextSize) else { throw FinanceDataError.backupCapacityExceeded }
+        }
     }
 
-    private func validateCount() throws {
-        let statement = try prepare("SELECT COUNT(*) FROM transactions")
+    private func validateCapacity() throws {
+        let statement = try prepare("SELECT COUNT(*), COALESCE(SUM(encoded_bytes), 0) + COUNT(*) + 2 FROM transactions")
         defer { sqlite3_finalize(statement) }
         guard sqlite3_step(statement) == SQLITE_ROW else { throw databaseError() }
         guard sqlite3_column_int64(statement, 0) <= Int64(Self.maximumTransactions) else { throw FinanceDataError.tooManyTransactions }
+        guard sqlite3_column_int64(statement, 1) <= Int64(BackupService.maximumPlaintextSize) else { throw FinanceDataError.backupCapacityExceeded }
+    }
+
+    // Limits are both record count and encoded size. The margin absorbs future JSON
+    // encoding changes; each accepted snapshot remains exportable below 20 MiB.
+    private func encodedBudget(_ transaction: FinanceTransaction) throws -> Int64 {
+        Int64(try JSONEncoder().encode(transaction).count) + 64
+    }
+
+    private func migrateSnapshotBudgetIfNeeded() throws {
+        let statement = try prepare("PRAGMA table_info(transactions)")
+        var found = false
+        while true {
+            let status = sqlite3_step(statement)
+            if status == SQLITE_DONE { break }
+            guard status == SQLITE_ROW else { sqlite3_finalize(statement); throw databaseError() }
+            if string(statement, 1) == "encoded_bytes" { found = true }
+        }
+        sqlite3_finalize(statement)
+        guard !found else { return }
+        // Schema 1 builds made before the first release have no size accounting.
+        // Validate and backfill atomically; an oversized old database is preserved.
+        let existing = try all()
+        try validate(existing)
+        try atomic {
+            try execute("ALTER TABLE transactions ADD COLUMN encoded_bytes INTEGER NOT NULL DEFAULT 0")
+            let update = try prepare("UPDATE transactions SET encoded_bytes=? WHERE id=?")
+            defer { sqlite3_finalize(update) }
+            for transaction in existing {
+                sqlite3_reset(update)
+                sqlite3_clear_bindings(update)
+                try check(sqlite3_bind_int64(update, 1, try encodedBudget(transaction)))
+                try bind(transaction.id.uuidString, to: update, at: 2)
+                try checkDone(update)
+            }
+            try validateCapacity()
+        }
     }
 
     private func validateSchemaVersion() throws {
@@ -168,10 +216,11 @@ final class TransactionStore: @unchecked Sendable {
     }
 
     private func insert(_ transaction: FinanceTransaction) throws -> Bool {
-        let statement = try prepare("INSERT INTO transactions (id, amount, currency, merchant, date, kind, category, account, source, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO NOTHING")
+        let statement = try prepare("INSERT INTO transactions (id, amount, currency, merchant, date, kind, category, account, source, note, encoded_bytes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO NOTHING")
         defer { sqlite3_finalize(statement) }
         try bind(transaction.id.uuidString, to: statement, at: 1)
         try bindFields(transaction, to: statement, offset: 1)
+        try check(sqlite3_bind_int64(statement, 11, try encodedBudget(transaction)))
         try checkDone(statement)
         return sqlite3_changes(connection) == 1
     }
@@ -233,7 +282,7 @@ final class TransactionStore: @unchecked Sendable {
 
     private func protect(_ path: URL) throws {
         #if os(iOS)
-        try FileManager.default.setAttributes([.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication], atPath: path.path)
+        try FileManager.default.setAttributes([.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication], ofItemAtPath: path.path)
         #endif
     }
 

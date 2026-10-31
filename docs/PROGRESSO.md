@@ -14,13 +14,13 @@ Primeira implementação do app iOS pronta para validação Apple, na branch `fe
 - CSV UTF-8 com prévia, validação integral e merge atômico; valores e moedas explícitos.
 - Proteção de visualização opcional com LocalAuthentication, incluindo modais e retorno do background.
 - Projeto Xcode determinístico, ícone e manifest de privacidade. Script de testes e workflow macOS sem credenciais bancárias/Apple.
-- 23 casos XCTest escritos, cobrindo dinheiro, armazenamento, rollback/concorrência, criptografia, CSV e conversão Atalhos.
+- 25 casos XCTest escritos, cobrindo dinheiro, armazenamento, rollback/concorrência, criptografia, CSV e conversão Atalhos.
 
 ## Evidências reais
 
 Executado no ambiente atual: gerador do projeto, verificação de referências/arquivos plist/XML/JSON, sintaxe do script Bash e compilação sintática dos scripts Python. Busca de APIs de rede/SDKs de analytics em fontes de runtime sem ocorrência. Revisão independente sênior trouxe correções de proteção de arquivos, fail-open em autenticação e formato AppIntent.
 
-Não executado localmente: Swift typecheck, XCTest, UI render, Keychain, seletor de pasta/iCloud e automações reais. Ambiente Linux sem Xcode/Swift. O workflow no GitHub deve fornecer evidência de compilação e testes; ver resultado no PR antes de fazer merge.
+Não executado localmente: Swift typecheck, XCTest, UI render, Keychain, seletor de pasta/iCloud e automações reais. Ambiente Linux sem Xcode/Swift. A primeira execução do GitHub Actions falhou no build por um argumento Foundation incorreto (`setAttributes`); corrigido para `ofItemAtPath`. Os 25 testes ainda precisam passar na nova execução. Ver resultado no PR antes de fazer merge.
 
 ## Equipe
 
@@ -34,8 +34,9 @@ Gerente: integração, App Intents, formato CSV, projeto/CI e documentação. S�
 4. O app aceita campos estruturados via Atalhos; não há parser universal de textos bancários. Precisamos dos bancos e formatos para criar regras confiáveis.
 5. Backup é cópia criptografada em pasta escolhida. Status de gravação não confirma upload iCloud. Sem timer permanente em background e sem sincronização entre dispositivos.
 6. Restauração é merge de IDs ausentes: não sobrescreve versão editada de um ID existente. CSV sem IDs usa conteúdo+ocorrência; duas fontes com dados idênticos podem colidir. Preferir UUID estável de origem.
-7. Totais são fluxo dos registros em BRL, sem saldo bancário, financiamento, parcelas/faturas ou conciliação automática nesta primeira versão.
-8. Não enviar build à Apple nem gastar com assinatura sem decisão do usuário. Conta gratuita via Xcode e TestFlight têm limites/expiração documentados.
+7. A capacidade também é limitada a 14 MiB de JSON contabilizado para garantir backups de até 20 MiB. Operações que ultrapassam o limite falham com rollback e aviso; o banco não passa a aceitar dados impossíveis de exportar.
+8. Totais são fluxo dos registros em BRL, sem saldo bancário, financiamento, parcelas/faturas ou conciliação automática nesta primeira versão.
+9. Não enviar build à Apple nem gastar com assinatura sem decisão do usuário. Conta gratuita via Xcode e TestFlight têm limites/expiração documentados.
 
 ## Pendências com o usuário
 

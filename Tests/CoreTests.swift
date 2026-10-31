@@ -123,6 +123,52 @@ final class TransactionStoreTests: XCTestCase {
             XCTAssertEqual(try store.all(), [original])
         }
     }
+
+    func testSnapshotBudgetRejectsWritesAtomicallyAndRemainsExportable() throws {
+        try withDatabase { url in
+            let store = try TransactionStore(url: url)
+            var sample = sampleTransaction()
+            sample.note = String(repeating: "a", count: 4_000)
+            let perRecord = try JSONEncoder().encode(sample).count + 65
+            let fittingCount = (BackupService.maximumPlaintextSize - 2) / perRecord
+            let fitting = (0..<fittingCount).map { _ -> FinanceTransaction in
+                var item = sample
+                item.id = UUID()
+                return item
+            }
+            try store.replaceAll(fitting)
+            let before = try store.all()
+            XCTAssertLessThanOrEqual(try JSONEncoder().encode(before).count, BackupService.maximumPlaintextSize)
+            let encrypted = try BackupService.encrypt(transactions: before, password: "senha-de-capacidade-segura")
+            XCTAssertLessThanOrEqual(encrypted.count, BackupService.maximumFileSize)
+            var extra = sample
+            extra.id = UUID()
+            XCTAssertThrowsError(try store.add(extra))
+            XCTAssertThrowsError(try store.merge([extra]))
+            var expanded = fitting[0]
+            expanded.note = String(repeating: "😀", count: 4_000)
+            XCTAssertThrowsError(try store.update(expanded))
+            XCTAssertThrowsError(try store.replaceAll(fitting + [extra]))
+            XCTAssertEqual(try store.all(), before)
+        }
+    }
+
+    func testPreReleaseSchemaSizeBudgetIsBackfilled() throws {
+        try withDatabase { url in
+            var store: TransactionStore? = try TransactionStore(url: url)
+            let original = sampleTransaction()
+            try store!.add(original)
+            store = nil
+            var handle: OpaquePointer?
+            XCTAssertEqual(sqlite3_open(url.path, &handle), SQLITE_OK)
+            XCTAssertEqual(sqlite3_exec(handle, "ALTER TABLE transactions DROP COLUMN encoded_bytes", nil, nil, nil), SQLITE_OK)
+            sqlite3_close(handle)
+            let migrated = try TransactionStore(url: url)
+            XCTAssertEqual(try migrated.all(), [original])
+            XCTAssertTrue(try migrated.add(sampleTransaction()))
+            XCTAssertEqual(try migrated.all().count, 2)
+        }
+    }
 }
 
 final class BackupServiceTests: XCTestCase {

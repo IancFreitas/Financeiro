@@ -62,6 +62,7 @@ enum FinanceDataError: LocalizedError {
     case duplicateIdentifier
     case missingTransaction
     case arithmeticOverflow
+    case backupCapacityExceeded
 
     var errorDescription: String? {
         switch self {
@@ -71,6 +72,7 @@ enum FinanceDataError: LocalizedError {
         case .duplicateIdentifier: return "Há identificadores repetidos no arquivo."
         case .missingTransaction: return "O lançamento não existe mais."
         case .arithmeticOverflow: return "O total excede o limite suportado."
+        case .backupCapacityExceeded: return "O espaço para lançamentos chegou ao limite de backup seguro (14 MB de dados). Exporte uma cópia e remova registros antes de adicionar mais."
         }
     }
 }

@@ -16,7 +16,7 @@ Formato UTF-8 (BOM opcional), delimitador `;` recomendado. O [modelo](modelo-imp
 
 Aspas escapadas e quebras de linha em campos com aspas são aceitas. Com delimitador vírgula, envolva valores decimais com aspas (`"123,45"`). Colunas desconhecidas, linhas inconsistentes, valores ambíguos, moedas diferentes ou identificadores repetidos rejeitam o arquivo inteiro antes de alterar o banco.
 
-Limite de 20 MB e 100.000 registros. A prévia exibe os primeiros 100 e informa o total a importar. O merge inteiro acontece dentro de uma transação SQLite; falhas revertem a operação.
+Arquivos de até 20 MiB e 100.000 registros. A base final também precisa caber no orçamento de 14 MiB de JSON contabilizado para garantir que continue exportável. Se exceder esse limite, a operação inteira é recusada sem alterar os registros atuais. A prévia exibe os primeiros 100 e informa o total a importar. O merge inteiro acontece dentro de uma transação SQLite; falhas revertem a operação.
 
 Sem coluna id, o app gera IDs determinísticos pelo conteúdo normalizado e ocorrência de linhas idênticas. Isso permite importar o mesmo arquivo novamente sem duplicá-lo e preserva duas linhas iguais dentro do arquivo. Porém, duas fontes diferentes com dados idênticos podem receber o mesmo ID, e uma linha alterada vira outro ID. Prefira IDs estáveis da origem e confira duplicatas na prévia.
 
