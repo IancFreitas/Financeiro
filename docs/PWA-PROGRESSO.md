@@ -42,3 +42,7 @@ Backup iCloud por exportação/compartilhamento; status de exportação solicita
 2. Executar roteiro com dados fictícios: criar cofre, cadastrar/editar, bloquear, senha errada/correta, recarregar, testar offline e restaurar uma cópia.
 3. Confirmar compartilhamento em Arquivos/iCloud no iPhone. Não depender de uma cópia que não foi verificada.
 4. Configurar captura por Atalhos com campos que realmente estejam disponíveis, revisar e testar duplicatas/alertas incompletos. Não assumir parser de texto universal.
+
+## CI remota
+
+GitHub Actions aprovou o código PWA no commit703cd9bb41b1f6839f8871e01e67ff5b27386a17: https://github.com/IancFreitas/Financeiro/actions/runs/41192476442 . Os19 testes, a verificação sintática e a montagem dos13 recursos estáticos passaram. Os limites de validação no navegador/iPhone descritos acima permanecem.

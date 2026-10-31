@@ -24,3 +24,7 @@ IndexedDB real/CAS entre janelas, criação/reabertura/bloqueio, offline, export
 7. Carregar online, aguardar o primeiro cache completo e testar modo avião. Não apagar o app/dados do site para testar com registros reais.
 
 A senha do cofre e dados financeiros reais não devem ser enviados em chats, logs ou repositórios.
+
+## CI remota
+
+GitHub Actions aprovou o código PWA no commit703cd9bb41b1f6839f8871e01e67ff5b27386a17: https://github.com/IancFreitas/Financeiro/actions/runs/41192476442 . Os19 testes, a verificação sintática e a montagem dos13 recursos estáticos passaram. Os limites de validação no navegador/iPhone descritos acima permanecem.
