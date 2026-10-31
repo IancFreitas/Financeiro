@@ -52,3 +52,9 @@ Gerente: integração, App Intents, formato CSV, projeto/CI e documentação. S�
 2. Escolher instalação conforme acesso/conta informados pelo usuário.
 3. Validar no iPhone o roteiro em INSTALACAO.md com dados fictícios, incluindo restauração real e retorno de autenticação nos modais.
 4. Configurar e testar captura específica por banco/cartão. Conferir duplicação, compra negada, estorno, alerta ausente e offline.
+
+## Verificação técnica de distribuição
+
+Build e testes no simulador não produzem, por si só, um app instalável no iPhone. A instalação nativa exige assinatura e provisionamento Apple. A opção gratuita oficial usa Xcode e perfis temporários; distribuição por TestFlight requer Apple Developer Program e builds assinados. Antes de preparar distribuição, esclarecer o caminho de instalação e seus custos com o usuário. Não contratar assinatura nem assumir acesso a ambiente de assinatura.
+
+Este checkpoint registra somente o requisito técnico público; detalhes pessoais, instituições bancárias utilizadas e condições da conta do usuário não devem ser registrados aqui sem autorização específica.
